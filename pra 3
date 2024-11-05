@@ -1,0 +1,72 @@
+Bt 3
+pragma solidity ^0.8.1;
+
+contract SimpleBank {
+    struct client_account {
+        int client_id;
+        address client_address;
+        uint client_balance_in_ether;
+    }
+
+    client_account[] clients;
+    int clientCounter;  
+    address payable manager;
+
+    modifier onlyManager() {
+        require(msg.sender == manager, "Only manager can call this!");
+        _;
+    }
+
+    modifier onlyClients() {
+        bool isClient = false;
+        for (uint i = 0; i < clients.length; i++) {
+            if (clients[i].client_address == msg.sender) {
+                isClient = true;
+                break;
+            }
+        }
+        require(isClient, "Only clients can call this!");
+        _;
+    }
+
+    constructor() {
+        clientCounter = 0;
+    }
+
+    receive() external payable {}
+
+    function setManager(address managerAddress) public returns (string memory) {
+        manager = payable(managerAddress);
+        return "Manager set successfully!";
+    }
+
+    function joinAsClient() public payable returns (string memory) {
+        clients.push(client_account(clientCounter++, msg.sender, address(msg.sender).balance));
+        return "Client joined successfully!";
+    }
+
+    function deposit() public payable onlyClients {
+        // Directly increase contract balance
+        require(msg.value > 0, "Deposit amount must be greater than zero");
+    }
+
+    function withdraw(uint amount) public onlyClients {
+        require(amount > 0, "Withdraw amount must be greater than zero");
+        require(address(this).balance >= amount * 1 ether, "Insufficient contract balance");
+        
+        payable(msg.sender).transfer(amount * 1 ether);
+    }
+
+    function sendInterest() public onlyManager {
+        require(address(this).balance >= clients.length * 1 ether, "Not enough balance to send interest");
+        
+        for (uint i = 0; i < clients.length; i++) {
+            address initialAddress = clients[i].client_address;
+            payable(initialAddress).transfer(1 ether);
+        }
+    }
+
+    function getContractBalance() public view returns (uint) {
+        return address(this).balance;
+    }
+}
